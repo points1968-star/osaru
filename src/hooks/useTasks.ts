@@ -24,6 +24,7 @@ function dbToTask(row: DbTask): Task {
     priority: row.priority as Priority,
     dueDate: row.due_date,
     completed: row.completed,
+    frozen: (row as any).frozen ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     subtasks: (row.subtasks ?? []).map(s => ({
@@ -124,6 +125,18 @@ export function useTasks(user: User | null) {
     if (!error && row) setTasks(prev => prev.map(t => t.id === id ? dbToTask(row) : t))
   }
 
+  async function freezeTask(id: string) {
+    const task = tasks.find(t => t.id === id)
+    if (!task) return
+    const { data: row, error } = await supabase
+      .from('tasks')
+      .update({ frozen: !task.frozen, updated_at: now() })
+      .eq('id', id)
+      .select('*, subtasks(*)')
+      .single()
+    if (!error && row) setTasks(prev => prev.map(t => t.id === id ? dbToTask(row) : t))
+  }
+
   async function addSubtask(taskId: string, title: string) {
     const { data: row, error } = await supabase
       .from('subtasks')
@@ -182,6 +195,7 @@ export function useTasks(user: User | null) {
     updateTask,
     deleteTask,
     toggleComplete,
+    freezeTask,
     addSubtask,
     toggleSubtask,
     deleteSubtask,

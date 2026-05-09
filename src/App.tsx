@@ -1,13 +1,17 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useTasks } from './hooks/useTasks'
 import { useAuth } from './hooks/useAuth'
+import { useAnn } from './hooks/useAnn'
 import { TaskList } from './components/TaskList'
 import { TaskForm } from './components/TaskForm'
 import { FilterBar } from './components/FilterBar'
 import { Toast, pickMessage } from './components/Toast'
 import { Auth } from './components/Auth'
+import { DecompositionModal } from './components/DecompositionModal'
+import { InterventionDialog } from './components/InterventionDialog'
+import { DailySummary } from './components/DailySummary'
 import { supabase } from './lib/supabase'
-import type { Task, FilterState, Priority } from './types'
+import type { Task, FilterState, Priority, AnnDecomposition } from './types'
 import './App.css'
 
 const PRIORITY_ORDER: Record<Priority, number> = { high: 0, medium: 1, low: 2 }
@@ -21,19 +25,26 @@ const DEFAULT_FILTER: FilterState = {
 
 export default function App() {
   const { user, loading: authLoading } = useAuth()
-  const { tasks, loadingTasks, addTask, updateTask, deleteTask, toggleComplete, addSubtask, toggleSubtask, deleteSubtask } = useTasks(user)
+  const { tasks, loadingTasks, addTask, updateTask, deleteTask, toggleComplete, freezeTask, addSubtask, toggleSubtask, deleteSubtask } = useTasks(user)
+  const { loading: annLoading, decompose } = useAnn()
+
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER)
   const [toast, setToast] = useState<{ message: string; key: number } | null>(null)
 
+  // Ann states
+  const [decompositionResult, setDecompositionResult] = useState<{ task: Task; result: AnnDecomposition } | null>(null)
+  const [interventionTask, setInterventionTask] = useState<Task | null>(null)
+  const [showDailySummary, setShowDailySummary] = useState(false)
+
   const neglectedTasks = useMemo(
-    () => tasks.filter(t => !t.completed && Date.now() - new Date(t.updatedAt).getTime() > NEGLECT_MS),
+    () => tasks.filter(t => !t.completed && !t.frozen && Date.now() - new Date(t.updatedAt).getTime() > NEGLECT_MS),
     [tasks]
   )
 
   const filtered = useMemo(() => {
-    let list = [...tasks]
+    let list = tasks.filter(t => !t.frozen)
     if (filter.status === 'active') list = list.filter(t => !t.completed)
     if (filter.status === 'completed') list = list.filter(t => t.completed)
     if (filter.priority !== 'all') list = list.filter(t => t.priority === filter.priority)
@@ -50,9 +61,20 @@ export default function App() {
     return list
   }, [tasks, filter])
 
-  function handleAdd(data: { title: string; description: string; priority: Priority; dueDate: string }) {
-    addTask(data)
+  const frozenTasks = useMemo(() => tasks.filter(t => t.frozen), [tasks])
+
+  async function handleAdd(data: { title: string; description: string; priority: Priority; dueDate: string }) {
+    await addTask(data)
     setShowForm(false)
+    // Auto-trigger Ann decomposition
+    const newTask = { ...data, id: '', completed: false, frozen: false, createdAt: '', updatedAt: '', subtasks: [] } as Task
+    const result = await decompose(newTask)
+    if (result) {
+      // Find the actual saved task by title to get real ID
+      const saved = tasks.find(t => t.title === data.title)
+      const taskWithId = saved ?? { ...newTask, title: data.title }
+      setDecompositionResult({ task: taskWithId as Task, result })
+    }
   }
 
   function handleEdit(data: { title: string; description: string; priority: Priority; dueDate: string }) {
@@ -75,14 +97,51 @@ export default function App() {
     }
   }
 
+  async function handleApplyDecomposition(steps: string[]) {
+    if (!decompositionResult) return
+    // Find the actual task from tasks state (it should be there now after addTask)
+    const task = tasks.find(t => t.title === decompositionResult.task.title) ?? decompositionResult.task
+    for (const step of steps) {
+      await addSubtask(task.id, step)
+    }
+    setDecompositionResult(null)
+  }
+
+  async function handleRedecompose(taskId: string, steps: string[]) {
+    for (const step of steps) {
+      await addSubtask(taskId, step)
+    }
+    setInterventionTask(null)
+  }
+
+  async function handleFreeze(taskId: string) {
+    await freezeTask(taskId)
+    setInterventionTask(null)
+  }
+
+  async function handleInterventionDelete(taskId: string) {
+    if (window.confirm('このタスクを削除しますか？')) {
+      await deleteTask(taskId)
+      setInterventionTask(null)
+    }
+  }
+
+  const getDaysSince = (t: Task) =>
+    Math.floor((Date.now() - new Date(t.updatedAt).getTime()) / (24 * 60 * 60 * 1000))
+
   const clearToast = useCallback(() => setToast(null), [])
 
-  const activeCount = useMemo(() => tasks.filter(t => !t.completed).length, [tasks])
+  const activeCount = useMemo(() => tasks.filter(t => !t.completed && !t.frozen).length, [tasks])
   const completedCount = useMemo(() => tasks.filter(t => t.completed).length, [tasks])
-  const completionRate = useMemo(
-    () => tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0,
-    [tasks, completedCount]
-  )
+  const completionRate = useMemo(() => {
+    const total = tasks.filter(t => !t.frozen).length
+    return total > 0 ? Math.round((completedCount / total) * 100) : 0
+  }, [tasks, completedCount])
+
+  const completedToday = useMemo(() => {
+    const today = new Date().toDateString()
+    return tasks.filter(t => t.completed && new Date(t.updatedAt).toDateString() === today)
+  }, [tasks])
 
   if (authLoading) {
     return <div className="loading-screen"><div className="loading-spinner" /></div>
@@ -105,6 +164,11 @@ export default function App() {
           </div>
         </div>
         <div className="header-right">
+          {completedToday.length > 0 && (
+            <button className="btn btn--reflection" onClick={() => setShowDailySummary(true)}>
+              📊 今日の振り返り
+            </button>
+          )}
           <span className="user-email">{user.email}</span>
           <button className="btn btn--secondary" onClick={() => supabase.auth.signOut()}>
             ログアウト
@@ -132,7 +196,7 @@ export default function App() {
         <FilterBar
           filter={filter}
           onChange={setFilter}
-          totalCount={tasks.length}
+          totalCount={tasks.filter(t => !t.frozen).length}
           activeCount={activeCount}
           completedCount={completedCount}
         />
@@ -148,7 +212,23 @@ export default function App() {
             onAddSubtask={addSubtask}
             onToggleSubtask={toggleSubtask}
             onDeleteSubtask={deleteSubtask}
+            onIntervene={task => setInterventionTask(task)}
           />
+        )}
+
+        {frozenTasks.length > 0 && (
+          <div className="maybe-section">
+            <h2 className="maybe-title">❄️ Maybeリスト（{frozenTasks.length}件）</h2>
+            <TaskList
+              tasks={frozenTasks}
+              onToggle={handleToggle}
+              onEdit={task => setEditingTask(task)}
+              onDelete={handleDeleteConfirm}
+              onAddSubtask={addSubtask}
+              onToggleSubtask={toggleSubtask}
+              onDeleteSubtask={deleteSubtask}
+            />
+          </div>
         )}
       </main>
 
@@ -158,6 +238,33 @@ export default function App() {
 
       {editingTask && (
         <TaskForm initial={editingTask} onSubmit={handleEdit} onCancel={() => setEditingTask(null)} />
+      )}
+
+      {decompositionResult && (
+        <DecompositionModal
+          result={decompositionResult.result}
+          loading={annLoading}
+          onApply={handleApplyDecomposition}
+          onClose={() => setDecompositionResult(null)}
+        />
+      )}
+
+      {interventionTask && (
+        <InterventionDialog
+          task={interventionTask}
+          daysSince={getDaysSince(interventionTask)}
+          onRedecompose={handleRedecompose}
+          onFreeze={handleFreeze}
+          onDelete={handleInterventionDelete}
+          onClose={() => setInterventionTask(null)}
+        />
+      )}
+
+      {showDailySummary && (
+        <DailySummary
+          completedToday={completedToday}
+          onClose={() => setShowDailySummary(false)}
+        />
       )}
 
       {toast && (

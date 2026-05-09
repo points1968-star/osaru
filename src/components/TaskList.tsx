@@ -9,9 +9,10 @@ interface Props {
   onAddSubtask: (taskId: string, title: string) => void
   onToggleSubtask: (taskId: string, subtaskId: string) => void
   onDeleteSubtask: (taskId: string, subtaskId: string) => void
+  onIntervene?: (task: Task) => void
 }
 
-export function TaskList({ tasks, onToggle, onEdit, onDelete, onAddSubtask, onToggleSubtask, onDeleteSubtask }: Props) {
+export function TaskList({ tasks, onToggle, onEdit, onDelete, onAddSubtask, onToggleSubtask, onDeleteSubtask, onIntervene }: Props) {
   if (tasks.length === 0) {
     return (
       <div className="empty">
@@ -32,6 +33,7 @@ export function TaskList({ tasks, onToggle, onEdit, onDelete, onAddSubtask, onTo
           onAddSubtask={onAddSubtask}
           onToggleSubtask={onToggleSubtask}
           onDeleteSubtask={onDeleteSubtask}
+          onIntervene={onIntervene}
         />
       ))}
     </div>

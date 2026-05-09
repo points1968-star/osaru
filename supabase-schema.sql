@@ -9,9 +9,13 @@ CREATE TABLE IF NOT EXISTS tasks (
   priority    TEXT NOT NULL CHECK (priority IN ('high', 'medium', 'low')),
   due_date    TEXT NOT NULL DEFAULT '',
   completed   BOOLEAN NOT NULL DEFAULT false,
+  frozen      BOOLEAN NOT NULL DEFAULT false,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Add frozen column if upgrading from previous schema
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS frozen BOOLEAN NOT NULL DEFAULT false;
 
 -- Subtasks table
 CREATE TABLE IF NOT EXISTS subtasks (

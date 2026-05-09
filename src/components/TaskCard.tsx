@@ -9,6 +9,7 @@ interface Props {
   onAddSubtask: (taskId: string, title: string) => void
   onToggleSubtask: (taskId: string, subtaskId: string) => void
   onDeleteSubtask: (taskId: string, subtaskId: string) => void
+  onIntervene?: (task: Task) => void
 }
 
 const PRIORITY_LABELS: Record<Priority, string> = { high: '高', medium: '中', low: '低' }
@@ -24,6 +25,10 @@ function isNeglected(updatedAt: string, completed: boolean): boolean {
   if (completed) return false
   const ms = Date.now() - new Date(updatedAt).getTime()
   return ms > NEGLECT_DAYS * 24 * 60 * 60 * 1000
+}
+
+function getDaysSince(updatedAt: string): number {
+  return Math.floor((Date.now() - new Date(updatedAt).getTime()) / (24 * 60 * 60 * 1000))
 }
 
 function formatDate(dateStr: string): string {
@@ -61,12 +66,13 @@ function PlusIcon() {
   )
 }
 
-export function TaskCard({ task, onToggle, onEdit, onDelete, onAddSubtask, onToggleSubtask, onDeleteSubtask }: Props) {
+export function TaskCard({ task, onToggle, onEdit, onDelete, onAddSubtask, onToggleSubtask, onDeleteSubtask, onIntervene }: Props) {
   const [showSubtasks, setShowSubtasks] = useState(false)
   const [newSubtask, setNewSubtask] = useState('')
 
   const overdue = isOverdue(task.dueDate, task.completed)
   const neglected = isNeglected(task.updatedAt, task.completed)
+  const daysSince = getDaysSince(task.updatedAt)
   const subtasks = task.subtasks ?? []
   const completedSubs = subtasks.filter(s => s.completed).length
   const totalSubs = subtasks.length
@@ -79,8 +85,16 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onAddSubtask, onTog
     setNewSubtask('')
   }
 
+  const cardClass = [
+    'card',
+    task.completed ? 'card--completed' : '',
+    task.frozen ? 'card--frozen' : '',
+    overdue && !task.frozen ? 'card--overdue' : '',
+    neglected && !task.frozen ? 'card--neglected' : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <div className={`card ${task.completed ? 'card--completed' : ''} ${overdue ? 'card--overdue' : ''} ${neglected ? 'card--neglected' : ''}`}>
+    <div className={cardClass}>
       <div className="card-left">
         <button
           className={`checkbox ${task.completed ? 'checkbox--checked' : ''}`}
@@ -100,7 +114,10 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onAddSubtask, onTog
           <span className={`priority-badge priority-badge--${task.priority}`}>
             {PRIORITY_LABELS[task.priority]}
           </span>
-          {neglected && (
+          {task.frozen && (
+            <span className="frozen-badge">❄️ Maybeリスト</span>
+          )}
+          {neglected && !task.frozen && (
             <span className="neglect-badge">⏰ {NEGLECT_DAYS}日以上放置中</span>
           )}
           {task.dueDate && (
@@ -175,6 +192,16 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onAddSubtask, onTog
               <button type="submit" className="subtask-add-btn">追加</button>
             </form>
           </div>
+        )}
+
+        {neglected && !task.completed && !task.frozen && onIntervene && (
+          <button
+            className="ann-intervene-btn"
+            onClick={() => onIntervene(task)}
+            title={`アンに相談する（${daysSince}日停滞）`}
+          >
+            アンに相談 💬
+          </button>
         )}
       </div>
 
