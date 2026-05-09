@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '')
 
 const ANN_SYSTEM = `あなたはAI秘書「アン」です。
 知的で理知的、常に丁寧な敬語でユーザーのタスク管理を支援します。
@@ -32,15 +32,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      system: ANN_SYSTEM,
-      messages: [{ role: 'user', content: prompt }],
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      systemInstruction: ANN_SYSTEM,
     })
-
-    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
-    const json = JSON.parse(text)
+    const result = await model.generateContent(prompt)
+    const text = result.response.text().trim()
+    const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+    const json = JSON.parse(cleaned)
     return res.status(200).json(json)
   } catch (err) {
     console.error('[ann] error:', err)
