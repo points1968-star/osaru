@@ -72,10 +72,10 @@ export default function App() {
     const result = await decompose(savedTask)
     setToast(null)
 
-    if (result) {
-      setDecompositionResult({ task: savedTask, result })
+    if (typeof result === 'string') {
+      setToast({ message: `❌ ${result}`, key: Date.now() })
     } else {
-      setToast({ message: '💬 アンへの接続に失敗しました', key: Date.now() })
+      setDecompositionResult({ task: savedTask, result })
     }
   }
 

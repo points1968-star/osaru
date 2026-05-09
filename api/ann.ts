@@ -42,7 +42,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const json = JSON.parse(text)
     return res.status(200).json(json)
   } catch (err) {
-    console.error('[ann] error:', err)
-    return res.status(500).json({ error: 'AI応答の生成に失敗しました' })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[ann] error:', msg)
+    return res.status(500).json({ error: msg })
   }
 }
