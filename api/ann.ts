@@ -33,13 +33,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       systemInstruction: ANN_SYSTEM,
+      generationConfig: { responseMimeType: 'application/json' },
     })
     const result = await model.generateContent(prompt)
     const text = result.response.text().trim()
-    const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-    const json = JSON.parse(cleaned)
+    const json = JSON.parse(text)
     return res.status(200).json(json)
   } catch (err) {
     console.error('[ann] error:', err)
