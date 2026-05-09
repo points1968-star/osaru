@@ -379,6 +379,67 @@ body {
 .priority-btn--low.priority-btn--active { background: #dcfce7; border-color: #4ade80; }
 .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
 
+/* ===== Header right ===== */
+.header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.user-email { font-size: 13px; color: #6b7280; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ===== Auth screen ===== */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  padding: 16px;
+}
+.auth-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 36px 32px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.10);
+}
+.auth-title { font-size: 26px; font-weight: 700; color: #111; text-align: center; margin-bottom: 4px; }
+.auth-subtitle { font-size: 14px; color: #6b7280; text-align: center; margin-bottom: 24px; }
+.auth-tabs { display: flex; gap: 4px; background: #f3f4f6; border-radius: 8px; padding: 4px; margin-bottom: 24px; }
+.auth-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.15s;
+}
+.auth-tab--active { background: #fff; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.auth-error { font-size: 13px; color: #ef4444; background: #fef2f2; border-radius: 6px; padding: 8px 12px; }
+.auth-message { font-size: 13px; color: #15803d; background: #dcfce7; border-radius: 6px; padding: 8px 12px; }
+.auth-submit { width: 100%; padding: 11px; font-size: 15px; }
+.auth-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ===== Loading ===== */
+.loading-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.loading-tasks { display: flex; justify-content: center; padding: 40px; }
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ===== Toast ===== */
 .toast {
   position: fixed;

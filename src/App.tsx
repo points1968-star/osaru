@@ -1,9 +1,12 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useTasks } from './hooks/useTasks'
+import { useAuth } from './hooks/useAuth'
 import { TaskList } from './components/TaskList'
 import { TaskForm } from './components/TaskForm'
 import { FilterBar } from './components/FilterBar'
 import { Toast, pickMessage } from './components/Toast'
+import { Auth } from './components/Auth'
+import { supabase } from './lib/supabase'
 import type { Task, FilterState, Priority } from './types'
 import './App.css'
 
@@ -17,7 +20,8 @@ const DEFAULT_FILTER: FilterState = {
 }
 
 export default function App() {
-  const { tasks, addTask, updateTask, deleteTask, toggleComplete, addSubtask, toggleSubtask, deleteSubtask } = useTasks()
+  const { user, loading: authLoading } = useAuth()
+  const { tasks, loadingTasks, addTask, updateTask, deleteTask, toggleComplete, addSubtask, toggleSubtask, deleteSubtask } = useTasks(user)
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER)
@@ -61,11 +65,11 @@ export default function App() {
     if (window.confirm('このタスクを削除しますか？')) deleteTask(id)
   }
 
-  function handleToggle(id: string) {
+  async function handleToggle(id: string) {
     const task = tasks.find(t => t.id === id)
     if (!task) return
     const willComplete = !task.completed
-    toggleComplete(id)
+    await toggleComplete(id)
     if (willComplete) {
       setToast({ message: pickMessage(task.priority), key: Date.now() })
     }
@@ -80,6 +84,14 @@ export default function App() {
     [tasks, completedCount]
   )
 
+  if (authLoading) {
+    return <div className="loading-screen"><div className="loading-spinner" /></div>
+  }
+
+  if (!user) {
+    return <Auth />
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -92,9 +104,15 @@ export default function App() {
             <span className="progress-label">{completionRate}% 完了</span>
           </div>
         </div>
-        <button className="btn btn--primary" onClick={() => setShowForm(true)}>
-          + タスクを追加
-        </button>
+        <div className="header-right">
+          <span className="user-email">{user.email}</span>
+          <button className="btn btn--secondary" onClick={() => supabase.auth.signOut()}>
+            ログアウト
+          </button>
+          <button className="btn btn--primary" onClick={() => setShowForm(true)}>
+            + タスクを追加
+          </button>
+        </div>
       </header>
 
       {neglectedTasks.length > 0 && (
@@ -119,15 +137,19 @@ export default function App() {
           completedCount={completedCount}
         />
 
-        <TaskList
-          tasks={filtered}
-          onToggle={handleToggle}
-          onEdit={task => setEditingTask(task)}
-          onDelete={handleDeleteConfirm}
-          onAddSubtask={addSubtask}
-          onToggleSubtask={toggleSubtask}
-          onDeleteSubtask={deleteSubtask}
-        />
+        {loadingTasks ? (
+          <div className="loading-tasks"><div className="loading-spinner" /></div>
+        ) : (
+          <TaskList
+            tasks={filtered}
+            onToggle={handleToggle}
+            onEdit={task => setEditingTask(task)}
+            onDelete={handleDeleteConfirm}
+            onAddSubtask={addSubtask}
+            onToggleSubtask={toggleSubtask}
+            onDeleteSubtask={deleteSubtask}
+          />
+        )}
       </main>
 
       {showForm && (
