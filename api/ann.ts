@@ -32,14 +32,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: ANN_SYSTEM,
-      generationConfig: { responseMimeType: 'application/json' },
-    })
-    const result = await model.generateContent(prompt)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const fullPrompt = `${ANN_SYSTEM}\n\n${prompt}`
+    const result = await model.generateContent(fullPrompt)
     const text = result.response.text().trim()
-    const json = JSON.parse(text)
+    const cleaned = text.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim()
+    const json = JSON.parse(cleaned)
     return res.status(200).json(json)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
