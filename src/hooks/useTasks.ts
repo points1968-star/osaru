@@ -73,8 +73,8 @@ export function useTasks(user: User | null) {
     description: string
     priority: Priority
     dueDate: string
-  }) {
-    if (!user) return
+  }): Promise<Task | null> {
+    if (!user) return null
     const { data: row, error } = await supabase
       .from('tasks')
       .insert({
@@ -89,7 +89,12 @@ export function useTasks(user: User | null) {
       })
       .select('*, subtasks(*)')
       .single()
-    if (!error && row) setTasks(prev => [dbToTask(row), ...prev])
+    if (!error && row) {
+      const task = dbToTask(row)
+      setTasks(prev => [task, ...prev])
+      return task
+    }
+    return null
   }
 
   async function updateTask(id: string, data: { title: string; description: string; priority: Priority; dueDate: string }) {

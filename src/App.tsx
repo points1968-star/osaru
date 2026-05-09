@@ -64,16 +64,18 @@ export default function App() {
   const frozenTasks = useMemo(() => tasks.filter(t => t.frozen), [tasks])
 
   async function handleAdd(data: { title: string; description: string; priority: Priority; dueDate: string }) {
-    await addTask(data)
+    const savedTask = await addTask(data)
     setShowForm(false)
-    // Auto-trigger Ann decomposition
-    const newTask = { ...data, id: '', completed: false, frozen: false, createdAt: '', updatedAt: '', subtasks: [] } as Task
-    const result = await decompose(newTask)
+    if (!savedTask) return
+
+    setToast({ message: '🤔 アンが分析中...', key: Date.now() })
+    const result = await decompose(savedTask)
+    setToast(null)
+
     if (result) {
-      // Find the actual saved task by title to get real ID
-      const saved = tasks.find(t => t.title === data.title)
-      const taskWithId = saved ?? { ...newTask, title: data.title }
-      setDecompositionResult({ task: taskWithId as Task, result })
+      setDecompositionResult({ task: savedTask, result })
+    } else {
+      setToast({ message: '💬 アンへの接続に失敗しました', key: Date.now() })
     }
   }
 
@@ -99,10 +101,8 @@ export default function App() {
 
   async function handleApplyDecomposition(steps: string[]) {
     if (!decompositionResult) return
-    // Find the actual task from tasks state (it should be there now after addTask)
-    const task = tasks.find(t => t.title === decompositionResult.task.title) ?? decompositionResult.task
     for (const step of steps) {
-      await addSubtask(task.id, step)
+      await addSubtask(decompositionResult.task.id, step)
     }
     setDecompositionResult(null)
   }
