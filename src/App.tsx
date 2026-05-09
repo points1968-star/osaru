@@ -73,9 +73,12 @@ export default function App() {
 
   const clearToast = useCallback(() => setToast(null), [])
 
-  const activeCount = tasks.filter(t => !t.completed).length
-  const completedCount = tasks.filter(t => t.completed).length
-  const completionRate = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0
+  const activeCount = useMemo(() => tasks.filter(t => !t.completed).length, [tasks])
+  const completedCount = useMemo(() => tasks.filter(t => t.completed).length, [tasks])
+  const completionRate = useMemo(
+    () => tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0,
+    [tasks, completedCount]
+  )
 
   return (
     <div className="app">
