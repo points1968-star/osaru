@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { User } from '@supabase/supabase-js'
-import type { Task, Priority, Subtask } from '../types'
+import type { Task, Priority } from '../types'
 import { supabase } from '../lib/supabase'
 
 type DbTask = {
