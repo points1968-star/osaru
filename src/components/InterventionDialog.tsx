@@ -14,12 +14,14 @@ interface Props {
 export function InterventionDialog({ task, daysSince, onRedecompose, onFreeze, onDelete, onClose }: Props) {
   const { loading, intervene } = useAnn()
   const [result, setResult] = useState<AnnIntervention | null>(null)
+  const [error, setError] = useState('')
   const [asked, setAsked] = useState(false)
 
   async function handleAsk() {
     setAsked(true)
     const res = await intervene(task, daysSince)
-    setResult(res)
+    if (typeof res === 'string') setError(res)
+    else setResult(res)
   }
 
   const LABELS: Record<string, string> = {
@@ -98,6 +100,8 @@ export function InterventionDialog({ task, daysSince, onRedecompose, onFreeze, o
               )}
             </div>
           </>
+        ) : error ? (
+          <p className="ann-error">❌ {error}</p>
         ) : (
           <p className="ann-error">分析に失敗しました。もう一度お試しください。</p>
         )}

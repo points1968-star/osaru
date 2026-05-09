@@ -10,12 +10,12 @@ interface Props {
 export function DailySummary({ completedToday, onClose }: Props) {
   const { loading, reflect } = useAnn()
   const [result, setResult] = useState<AnnReflection | null>(null)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     reflect(completedToday).then(res => {
-      if (res) setResult(res)
-      else setError(true)
+      if (typeof res === 'string') setError(res)
+      else setResult(res)
     })
   }, [])
 
@@ -45,7 +45,7 @@ export function DailySummary({ completedToday, onClose }: Props) {
             <p>アンが振り返りを生成中...</p>
           </div>
         ) : error ? (
-          <p className="ann-error">振り返りの生成に失敗しました。</p>
+          <p className="ann-error">❌ {error}</p>
         ) : result ? (
           <>
             <div className="ann-advice-bubble ann-narrative">
